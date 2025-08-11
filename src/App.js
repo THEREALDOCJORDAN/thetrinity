@@ -2,50 +2,60 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API = '/api';
+// FIXED: Get the Netlify Functions URL (match Express routes that start with /api)
+const API = process.env.NODE_ENV === 'production' 
+  ? '/.netlify/functions/api/api'
+  : 'http://localhost:8888/.netlify/functions/api/api';
 
-export default function App() {
+function App() {
   const [currentMode, setCurrentMode] = useState('product_designer');
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
+  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   const modes = [
     { id: 'product_designer', name: '🎨 Lil Sash Designer', color: 'pink' },
-    { id: 'admin_dashboard', name: '👑 Lil Doc Admin', color: 'gold' },
+    { id: 'admin_dashboard', name: '👑 Lil Doc Admin', color: 'gold' },  
     { id: 'discovery_lab', name: '🌟 Jeeves Discovery Lab', color: 'purple' }
   ];
 
   const renderCurrentMode = () => {
     switch (currentMode) {
-      case 'product_designer': return <ProductDesigner sessionId={sessionId} />;
-      case 'admin_dashboard':  return <AdminDashboard />;
-      case 'discovery_lab':    return <DiscoveryLab />;
-      default: return <div>Select a mode above</div>;
+      case 'product_designer':
+        return <ProductDesigner sessionId={sessionId} />;
+      case 'admin_dashboard':
+        return <AdminDashboard sessionId={sessionId} />;
+      case 'discovery_lab':
+        return <DiscoveryLab sessionId={sessionId} />;
+      default:
+        return <div>Select a mode above</div>;
     }
   };
 
   return (
     <div className="App">
       <header className="app-header">
-        <h1>🎯 Doc Jordan&apos;s Trinity Platform</h1>
+        <h1>🎯 Doc Jordan's Trinity Platform</h1>
         <nav className="mode-selector">
-          {modes.map(m => (
+          {modes.map(mode => (
             <button
-              key={m.id}
-              className={`mode-btn ${currentMode === m.id ? 'active' : ''} ${m.color}`}
-              onClick={() => setCurrentMode(m.id)}
+              key={mode.id}
+              className={`mode-btn ${currentMode === mode.id ? 'active' : ''} ${mode.color}`}
+              onClick={() => setCurrentMode(mode.id)}
             >
-              {m.name}
+              {mode.name}
             </button>
           ))}
         </nav>
       </header>
-      <main className="main-content">{renderCurrentMode()}</main>
+      
+      <main className="main-content">
+        {renderCurrentMode()}
+      </main>
     </div>
   );
 }
 
-// Lil Sash
-function ProductDesigner({ sessionId }) {
+// Lil Sash Product Designer Component
+const ProductDesigner = ({ sessionId }) => {
   const [designPrompt, setDesignPrompt] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('ALKAMI');
   const [designOutput, setDesignOutput] = useState(null);
@@ -59,16 +69,19 @@ function ProductDesigner({ sessionId }) {
 
   const generateImage = async () => {
     if (!designPrompt.trim()) return;
+    
     setLoading(true);
     try {
-      const { data } = await axios.post(`${API}/design/generate`, {
+      const response = await axios.post(`${API}/design/generate`, {
         brand: selectedBrand,
         item_type: 'hoodie',
         description: designPrompt,
         session_id: sessionId
       });
-      setDesignOutput(data);
-    } catch (e) {
+
+      setDesignOutput(response.data);
+    } catch (error) {
+      console.error('Error generating design:', error);
       alert('Error generating design. Please try again.');
     } finally {
       setLoading(false);
@@ -78,18 +91,20 @@ function ProductDesigner({ sessionId }) {
   return (
     <div className="product-designer">
       <h2>🎨 Lil Sash - Product Designer</h2>
+      <p>AI-powered design creation for your fashion empire</p>
+      
       <div className="designer-interface">
         <div className="brand-selector">
           <h3>Choose Your Brand</h3>
           <div className="brand-buttons">
-            {brands.map(b => (
+            {brands.map(brand => (
               <button
-                key={b.id}
-                className={`brand-btn ${selectedBrand === b.id ? 'active' : ''}`}
-                style={{ borderColor: b.color }}
-                onClick={() => setSelectedBrand(b.id)}
+                key={brand.id}
+                className={`brand-btn ${selectedBrand === brand.id ? 'active' : ''}`}
+                style={{ borderColor: brand.color }}
+                onClick={() => setSelectedBrand(brand.id)}
               >
-                {b.name}
+                {brand.name}
               </button>
             ))}
           </div>
@@ -103,16 +118,25 @@ function ProductDesigner({ sessionId }) {
             placeholder="Describe your design idea..."
             className="design-textarea"
           />
-          <button className="generate-btn" onClick={generateImage} disabled={loading || !designPrompt.trim()}>
+          
+          <button 
+            className="generate-btn"
+            onClick={generateImage}
+            disabled={loading || !designPrompt.trim()}
+          >
             {loading ? '🎨 Generating...' : '🛸 Generate Design'}
           </button>
         </div>
 
-        {designOutput?.success && (
+        {designOutput && designOutput.success && (
           <div className="design-output">
             <h3>🎨 Your Design by Lil Sash</h3>
             <div className="image-container">
-              <img src={designOutput.image_url} alt={`${designOutput.brand} design`} className="generated-image" />
+              <img 
+                src={designOutput.image_url} 
+                alt={`${designOutput.brand} design`}
+                className="generated-image"
+              />
               <div className="image-details">
                 <p><strong>Brand:</strong> {designOutput.brand}</p>
                 <p><strong>Prompt:</strong> {designOutput.prompt_used}</p>
@@ -124,49 +148,65 @@ function ProductDesigner({ sessionId }) {
       </div>
     </div>
   );
-}
+};
 
-// Lil Doc
-function AdminDashboard() {
+// Lil Doc Admin Dashboard Component
+const AdminDashboard = ({ sessionId }) => {
   const [stores, setStores] = useState([]);
   const [selectedStore, setSelectedStore] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { loadStores(); }, []);
+  useEffect(() => {
+    loadStores();
+  }, []);
 
   const loadStores = async () => {
     try {
-      const { data } = await axios.get(`${API}/stores`);
-      setStores(data.stores || []);
-      if (data.stores?.length) {
-        setSelectedStore(data.stores[0]);
-        loadDashboardData(data.stores[0].shop_domain);
+      const response = await axios.get(`${API}/stores`);
+      setStores(response.data.stores || []);
+      if (response.data.stores && response.data.stores.length > 0) {
+        setSelectedStore(response.data.stores[0]);
+        loadDashboardData(response.data.stores[0].shop_domain);
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error loading stores:', error);
+    }
   };
 
   const loadDashboardData = async (shopDomain) => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/dashboard/${shopDomain}`);
-      setDashboardData(data);
-    } catch {}
-    finally { setLoading(false); }
+      const response = await axios.get(`${API}/dashboard/${shopDomain}`);
+      setDashboardData(response.data);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="admin-dashboard">
       <h2>👑 Lil Doc - Admin Dashboard</h2>
+      <p>Business management and analytics for your fashion empire</p>
+      
       <div className="dashboard-interface">
         <div className="store-selector">
           <h3>Select Store</h3>
-          <select value={selectedStore?.shop_domain || ''} onChange={(e) => {
-            const s = stores.find(x => x.shop_domain === e.target.value);
-            setSelectedStore(s);
-            if (s) loadDashboardData(s.shop_domain);
-          }}>
-            {stores.map(s => (<option key={s.id} value={s.shop_domain}>{s.name}</option>))}
+          <select 
+            value={selectedStore?.shop_domain || ''} 
+            onChange={(e) => {
+              const store = stores.find(s => s.shop_domain === e.target.value);
+              setSelectedStore(store);
+              if (store) loadDashboardData(store.shop_domain);
+            }}
+          >
+            {stores.map(store => (
+              <option key={store.id} value={store.shop_domain}>
+                {store.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -175,16 +215,31 @@ function AdminDashboard() {
         ) : dashboardData && (
           <div className="dashboard-stats">
             <div className="stats-grid">
-              <div className="stat-card"><h3>Products</h3><div className="stat-value">{dashboardData.stats?.total_products || 0}</div></div>
-              <div className="stat-card"><h3>Orders</h3><div className="stat-value">{dashboardData.stats?.total_orders || 0}</div></div>
-              <div className="stat-card"><h3>Revenue Today</h3><div className="stat-value">${dashboardData.stats?.revenue_today || 0}</div></div>
-              <div className="stat-card"><h3>Monthly Revenue</h3><div className="stat-value">${dashboardData.stats?.revenue_month || 0}</div></div>
+              <div className="stat-card">
+                <h3>Products</h3>
+                <div className="stat-value">{dashboardData.stats?.total_products || 0}</div>
+              </div>
+              <div className="stat-card">
+                <h3>Orders</h3>
+                <div className="stat-value">{dashboardData.stats?.total_orders || 0}</div>
+              </div>
+              <div className="stat-card">
+                <h3>Revenue Today</h3>
+                <div className="stat-value">${dashboardData.stats?.revenue_today || 0}</div>
+              </div>
+              <div className="stat-card">
+                <h3>Monthly Revenue</h3>
+                <div className="stat-value">${dashboardData.stats?.revenue_month || 0}</div>
+              </div>
             </div>
+
             <div className="recent-orders">
               <h3>Recent Orders</h3>
-              {dashboardData.recent_orders?.map(o => (
-                <div key={o.id} className="order-item">
-                  <span>{o.id}</span><span>${o.total}</span><span>{o.customer}</span>
+              {dashboardData.recent_orders?.map(order => (
+                <div key={order.id} className="order-item">
+                  <span>{order.id}</span>
+                  <span>${order.total}</span>
+                  <span>{order.customer}</span>
                 </div>
               ))}
             </div>
@@ -193,38 +248,48 @@ function AdminDashboard() {
       </div>
     </div>
   );
-}
+};
 
-// Jeeves
-function DiscoveryLab() {
+// Jeeves Discovery Lab Component  
+const DiscoveryLab = ({ sessionId }) => {
   const [activities, setActivities] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
-  useEffect(() => { loadActivities(); }, []);
+  useEffect(() => {
+    loadActivities();
+  }, []);
 
   const loadActivities = async () => {
     try {
-      const { data } = await axios.get(`${API}/activities`);
-      setActivities(data);
-    } catch {}
+      const response = await axios.get(`${API}/activities`);
+      setActivities(response.data);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+    }
   };
 
   return (
     <div className="discovery-lab">
       <h2>🌟 Jeeves - Discovery Lab</h2>
+      <p>Your guide to wellness, mindfulness, and personal growth</p>
+      
       <div className="lab-interface">
         <div className="activities-grid">
-          {activities.map(a => (
-            <div key={a.id} className="activity-card" onClick={() => setSelectedActivity(a)}>
+          {activities.map(activity => (
+            <div 
+              key={activity.id} 
+              className="activity-card"
+              onClick={() => setSelectedActivity(activity)}
+            >
               <div className="activity-icon">
-                {a.id === 'mood-tracker' && '😊'}
-                {a.id === 'color-therapy' && '🌈'}
-                {a.id === 'aura-builder' && '✨'}
-                {a.id === 'breathwork' && '🫁'}
+                {activity.id === 'mood-tracker' && '😊'}
+                {activity.id === 'color-therapy' && '🌈'} 
+                {activity.id === 'aura-builder' && '✨'}
+                {activity.id === 'breathwork' && '🫁'}
               </div>
-              <h3>{a.name}</h3>
-              <p>{a.description}</p>
-              <span className="activity-category">{a.category}</span>
+              <h3>{activity.name}</h3>
+              <p>{activity.description}</p>
+              <span className="activity-category">{activity.category}</span>
             </div>
           ))}
         </div>
@@ -233,10 +298,14 @@ function DiscoveryLab() {
           <div className="activity-detail">
             <h2>{selectedActivity.name}</h2>
             <p>{selectedActivity.description}</p>
-            <button className="start-activity-btn">Begin {selectedActivity.name}</button>
+            <button className="start-activity-btn">
+              Begin {selectedActivity.name}
+            </button>
           </div>
         )}
       </div>
     </div>
   );
-}
+};
+
+export default App;
