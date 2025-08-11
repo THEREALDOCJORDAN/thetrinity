@@ -1,0 +1,8 @@
+{
+  "name": "trinity-platform-backend",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.18.2",
+    "serverless-http": "^3.2.0"
+  }
+}
