@@ -1,0 +1,21 @@
+.App { font-family: system-ui, Arial, sans-serif; padding: 24px; }
+.app-header { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
+.mode-selector { display:flex; gap:8px; flex-wrap:wrap; }
+.mode-btn { padding:10px 14px; border-radius:10px; border:1px solid #444; cursor:pointer; }
+.mode-btn.active { box-shadow: 0 0 0 2px #999 inset; }
+.main-content { max-width: 960px; margin: 0 auto; }
+
+.product-designer,.admin-dashboard,.discovery-lab { display:block; }
+.brand-buttons { display:flex; gap:8px; flex-wrap:wrap; }
+.brand-btn { padding:8px 12px; border:2px solid #ccc; border-radius:12px; background:transparent; cursor:pointer; }
+.design-textarea { width:100%; min-height:120px; padding:10px; border-radius:8px; border:1px solid #555; }
+.generate-btn,.start-activity-btn { margin-top:10px; padding:10px 14px; border-radius:10px; border:1px solid #444; cursor:pointer; }
+.image-container { margin-top:12px; display:flex; gap:12px; align-items:flex-start; }
+.generated-image { width:240px; height:240px; object-fit:cover; border-radius:12px; }
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat-card { padding:12px; border:1px solid #444; border-radius:12px; }
+.stat-value { font-size:20px; font-weight:700; }
+.recent-orders .order-item { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #333; }
+.activities-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.activity-card { padding:12px; border:1px solid #444; border-radius:12px; cursor:pointer; }
+.activity-category { font-size:12px; opacity:.7; }
